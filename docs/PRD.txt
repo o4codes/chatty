@@ -1,0 +1,265 @@
+Product Requirements Document (PRD)
+Product Name
+
+Ephemeral Chat Rooms
+
+1. Purpose & Vision
+
+The goal of this product is to provide a simple, frictionless, and privacy-focused chat application that allows users to create and join chat rooms instantly without authentication or signup.
+
+All chat rooms are temporary, existing for one hour only, after which they are automatically destroyed along with all associated data.
+
+The product prioritizes:
+
+Speed
+
+Simplicity
+
+Privacy
+
+Zero onboarding friction
+
+2. Problem Statement
+
+Most chat applications require:
+
+User accounts
+
+Email verification
+
+Persistent data storage
+
+These requirements introduce friction for users who simply want a quick, temporary conversation space.
+
+There is a need for a disposable chat solution where:
+
+Anyone can start a room instantly
+
+Links can be shared easily
+
+No data is retained long-term
+
+3. Target Users
+
+Individuals who want quick, temporary discussions
+
+Teams needing short-lived collaboration spaces
+
+Study groups or interview sessions
+
+Ad-hoc meetings without setup overhead
+
+4. Key Product Principles
+
+No authentication: Users never create accounts
+
+Ephemeral by design: All data expires automatically
+
+Room-scoped identity: Display names only exist inside a room
+
+Single-purpose: Focused purely on chat
+
+Minimal infrastructure: Easy to deploy and operate
+
+5. Functional Requirements
+5.1 Room Creation
+
+Any visitor can create a new chat room
+
+Server generates a unique room_id
+
+Room has:
+
+created_at timestamp
+
+expires_at timestamp (exactly 1 hour later)
+
+User is redirected to the room URL upon creation
+
+Example URL
+
+/room/abc123
+
+5.2 Joining a Room
+
+Anyone with the room link can join
+
+On first entry, user provides a display name
+
+No identity verification or persistence across rooms
+
+Display name is only valid within the current room
+
+5.3 Messaging
+
+Real-time messaging using WebSockets
+
+Messages contain:
+
+Sender display name
+
+Message content
+
+Timestamp
+
+Messages are broadcast instantly to all connected participants
+
+Messages may be stored temporarily to allow page refresh recovery
+
+5.4 Room Expiration
+
+Each room automatically expires after 1 hour
+
+On expiration:
+
+All connected users are disconnected
+
+Room becomes inaccessible
+
+All messages and metadata are deleted
+
+Users are notified that the room has expired and redirected
+
+No room data persists beyond its expiration.
+
+5.5 Room Countdown (UX Requirement)
+
+Users can see remaining time before room expiration
+
+Countdown updates in real time
+
+Optional warning when less than 5 minutes remain
+
+6. Non-Functional Requirements
+6.1 Performance
+
+Messages should be delivered with minimal latency
+
+Application should handle multiple concurrent rooms on a single server
+
+6.2 Data Retention & Privacy
+
+SQLite is used only for short-lived persistence
+
+No data is retained beyond room expiration
+
+Database remains small and self-cleaning
+
+6.3 Reliability
+
+Expired rooms must be cleaned up reliably
+
+Server restarts should not resurrect expired rooms
+
+Cleanup process runs automatically in the background
+
+7. Technical Architecture
+7.1 Backend
+
+Framework: FastAPI
+
+Responsibilities:
+
+Room creation and validation
+
+WebSocket handling for chat
+
+Room expiration and cleanup
+
+WebSocket connections manage live messaging
+
+In-memory state tracks connected participants
+
+SQLite stores room metadata and optional message history
+
+7.2 Frontend
+
+Framework: Vue 3
+
+Single Page Application (SPA)
+
+Routes:
+
+/ → Create room
+
+/room/:id → Chat room
+
+Vue app is built and served directly by FastAPI
+
+7.3 Deployment Model
+
+Single-server deployment
+
+Vue static build mounted on FastAPI
+
+FastAPI serves:
+
+REST APIs (/api/*)
+
+WebSockets (/ws/*)
+
+Vue static assets and SPA routes
+
+No CORS configuration required
+
+8. Cleanup & Expiration Strategy
+
+Background task runs every 30–60 seconds
+
+Identifies rooms where expires_at <= current_time
+
+Performs:
+
+Deletion of room records
+
+Deletion of all associated messages
+
+Disconnection of active WebSocket clients
+
+9. Constraints & Assumptions
+
+No user authentication
+
+No external services (Redis, Postgres, etc.)
+
+Single-instance deployment
+
+No horizontal scaling
+
+Rooms are not recoverable once expired
+
+10. Out of Scope
+
+User accounts
+
+Moderation or reporting tools
+
+File uploads
+
+Search or analytics
+
+Long-term message history
+
+Voice or video chat
+
+11. Success Metrics
+
+Users can create a room in under 2 seconds
+
+Messages are delivered in real time with minimal delay
+
+Rooms expire exactly after 1 hour
+
+No expired data remains in the system
+
+Application is easy to deploy and maintain
+
+12. Future Considerations (Not Required)
+
+Optional room password
+
+Redis-based scaling
+
+WebRTC integration
+
+Shorter or configurable room durations
