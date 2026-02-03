@@ -209,7 +209,7 @@ onMounted(async () => {
   </div>
 
   <!-- Chat room -->
-  <template v-else-if="room">
+  <div v-else-if="room">
     <!-- Countdown in header area -->
     <div class="flex items-center justify-center gap-3 py-2 border-b border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/50">
       <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">{{ id }}</span>
@@ -290,5 +290,5 @@ onMounted(async () => {
 
     <!-- Expired overlay -->
     <RoomExpiredOverlay v-if="isExpired" />
-  </template>
+  </div>
 </template>
