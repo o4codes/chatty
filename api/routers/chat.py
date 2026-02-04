@@ -24,7 +24,7 @@ async def chat_websocket(websocket: WebSocket, room_id: str) -> None:
         await websocket.close(code=4004, reason="Room not found or expired")
         return
 
-    # Wait for the join message with the display name
+    # Wait for the join message with the display name and avatar
     await websocket.accept()
     try:
         join_data = await websocket.receive_json()
@@ -32,9 +32,11 @@ async def chat_websocket(websocket: WebSocket, room_id: str) -> None:
         return
 
     name = join_data.get("sender", "Anonymous")
+    avatar = join_data.get("avatar")
 
     # Register with manager (already accepted, so skip accept)
-    manager._rooms.setdefault(room_id, {})[websocket] = name
+    user_info = {"name": name, "avatar": avatar}
+    manager._rooms.setdefault(room_id, {})[websocket] = user_info
 
     # Broadcast join notification and updated user list
     await manager.broadcast(room_id, {
@@ -49,11 +51,11 @@ async def chat_websocket(websocket: WebSocket, room_id: str) -> None:
             data = await websocket.receive_json()
             await manager.broadcast(room_id, data)
     except WebSocketDisconnect:
-        disconnect_name = manager.disconnect(room_id, websocket)
-        if disconnect_name:
+        user = manager.disconnect(room_id, websocket)
+        if user:
             await manager.broadcast(room_id, {
                 "sender": "__system__",
-                "content": f"{disconnect_name} left the chat",
+                "content": f"{user['name']} left the chat",
                 "timestamp": "",
             })
             await broadcast_user_list(room_id)

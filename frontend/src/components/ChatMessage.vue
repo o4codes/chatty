@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { getAvatarById } from '../data/avatars.js'
 
 const props = defineProps({
   sender: { type: String, required: true },
@@ -7,6 +8,13 @@ const props = defineProps({
   timestamp: { type: String, required: true },
   isOwn: { type: Boolean, default: false },
   isSystem: { type: Boolean, default: false },
+  avatar: { type: String, default: null },
+})
+
+const avatarSvg = computed(() => {
+  if (!props.avatar) return null
+  const av = getAvatarById(props.avatar)
+  return av ? av.svg : null
 })
 
 const formattedTime = computed(() => {
@@ -65,6 +73,12 @@ const avatarLetter = computed(() => props.sender.charAt(0).toUpperCase())
     class="animate-fade-in-up flex gap-2 px-4"
   >
     <div
+      v-if="avatarSvg"
+      class="shrink-0 w-8 h-8 rounded-full overflow-hidden mt-5"
+      v-html="avatarSvg"
+    ></div>
+    <div
+      v-else
       class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold mt-5"
       :class="avatarColor"
     >

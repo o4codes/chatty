@@ -3,21 +3,24 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self) -> None:
-        self._rooms: dict[str, dict[WebSocket, str]] = {}
+        self._rooms: dict[str, dict[WebSocket, dict]] = {}
 
-    async def connect(self, room_id: str, websocket: WebSocket, name: str) -> None:
+    async def connect(self, room_id: str, websocket: WebSocket, user_info: dict) -> None:
         await websocket.accept()
-        self._rooms.setdefault(room_id, {})[websocket] = name
+        self._rooms.setdefault(room_id, {})[websocket] = user_info
 
-    def disconnect(self, room_id: str, websocket: WebSocket) -> str | None:
+    def disconnect(self, room_id: str, websocket: WebSocket) -> dict | None:
         connections = self._rooms.get(room_id, {})
-        name = connections.pop(websocket, None)
+        user_info = connections.pop(websocket, None)
         if not connections:
             self._rooms.pop(room_id, None)
-        return name
+        return user_info
 
-    def get_users(self, room_id: str) -> list[str]:
-        return list(self._rooms.get(room_id, {}).values())
+    def get_users(self, room_id: str) -> list[dict]:
+        return [
+            {"name": info["name"], "avatar": info.get("avatar")}
+            for info in self._rooms.get(room_id, {}).values()
+        ]
 
     async def broadcast(self, room_id: str, message: dict) -> None:
         connections = self._rooms.get(room_id, {})

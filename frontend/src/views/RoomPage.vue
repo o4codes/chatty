@@ -3,6 +3,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRoom } from '../composables/useRoom'
 import { useWebSocket } from '../composables/useWebSocket'
+import { getAvatarById } from '../data/avatars.js'
 import CountdownTimer from '../components/CountdownTimer.vue'
 import DisplayNameModal from '../components/DisplayNameModal.vue'
 import ChatMessage from '../components/ChatMessage.vue'
@@ -20,6 +21,7 @@ const { getRoom, loading } = useRoom()
 const room = ref(null)
 const notFound = ref(false)
 const displayName = ref('')
+const userAvatar = ref(null)
 const showNameModal = ref(true)
 const messages = ref([])
 const isExpired = ref(false)
@@ -38,14 +40,15 @@ function copyRoomLink() {
   })
 }
 
-// Session storage key for display name
+// Session storage keys
 const storageKey = `chatty-name-${props.id}`
+const avatarStorageKey = `chatty-avatar-${props.id}`
 
 // WebSocket
 let ws = null
 
 function initWebSocket() {
-  ws = useWebSocket(props.id, displayName.value, {
+  ws = useWebSocket(props.id, displayName.value, userAvatar.value, {
     onMessage(data) {
       if (data.sender === '__user_list__') {
         onlineUsers.value = data.content
@@ -58,6 +61,7 @@ function initWebSocket() {
       messages.value.push({
         id: crypto.randomUUID(),
         sender: data.sender,
+        avatar: data.avatar || null,
         content: data.content,
         timestamp: data.timestamp,
         isSystem: false,
@@ -109,10 +113,14 @@ function addSystemMessage(content) {
   nextTick(scrollToBottom)
 }
 
-function handleNameSubmit(name) {
+function handleNameSubmit({ name, avatar }) {
   displayName.value = name
+  userAvatar.value = avatar
   showNameModal.value = false
   sessionStorage.setItem(storageKey, name)
+  if (avatar) {
+    sessionStorage.setItem(avatarStorageKey, avatar)
+  }
   initWebSocket()
 }
 
@@ -120,6 +128,7 @@ function handleSend(content) {
   if (!ws) return
   ws.send({
     sender: displayName.value,
+    avatar: userAvatar.value,
     content,
   })
 }
@@ -131,6 +140,7 @@ function handleExpired() {
 function handleLeave() {
   if (ws) ws.close()
   sessionStorage.removeItem(storageKey)
+  sessionStorage.removeItem(avatarStorageKey)
   router.push({ name: 'home' })
 }
 
@@ -153,10 +163,11 @@ onMounted(async () => {
 
   room.value = data
 
-  // Check for stored display name
+  // Check for stored display name and avatar
   const storedName = sessionStorage.getItem(storageKey)
   if (storedName) {
     displayName.value = storedName
+    userAvatar.value = sessionStorage.getItem(avatarStorageKey) || null
     showNameModal.value = false
     initWebSocket()
     addSystemMessage('You reconnected. Previous messages are not available.')
@@ -324,6 +335,7 @@ onMounted(async () => {
               v-for="msg in messages"
               :key="msg.id"
               :sender="msg.sender"
+              :avatar="msg.avatar"
               :content="msg.content"
               :timestamp="msg.timestamp"
               :is-own="isOwnMessage(msg.sender)"
@@ -349,15 +361,25 @@ onMounted(async () => {
         <div class="flex-1 overflow-y-auto py-2">
           <div
             v-for="user in onlineUsers"
-            :key="user"
+            :key="user.name"
             class="flex items-center gap-2 px-3 py-1.5"
           >
-            <span class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+            <div
+              v-if="user.avatar && getAvatarById(user.avatar)"
+              class="w-6 h-6 rounded-full overflow-hidden shrink-0"
+              v-html="getAvatarById(user.avatar).svg"
+            ></div>
+            <span
+              v-else
+              class="w-6 h-6 rounded-full bg-brand/20 text-brand text-[10px] font-bold flex items-center justify-center shrink-0"
+            >
+              {{ user.name.charAt(0).toUpperCase() }}
+            </span>
             <span
               class="text-sm truncate"
-              :class="user === displayName ? 'font-medium text-brand dark:text-brand-light' : 'text-gray-700 dark:text-gray-300'"
+              :class="user.name === displayName ? 'font-medium text-brand dark:text-brand-light' : 'text-gray-700 dark:text-gray-300'"
             >
-              {{ user }}{{ user === displayName ? ' (you)' : '' }}
+              {{ user.name }}{{ user.name === displayName ? ' (you)' : '' }}
             </span>
           </div>
         </div>
@@ -404,15 +426,25 @@ onMounted(async () => {
         <div class="flex-1 overflow-y-auto py-2">
           <div
             v-for="user in onlineUsers"
-            :key="user"
+            :key="user.name"
             class="flex items-center gap-2 px-4 py-2"
           >
-            <span class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+            <div
+              v-if="user.avatar && getAvatarById(user.avatar)"
+              class="w-7 h-7 rounded-full overflow-hidden shrink-0"
+              v-html="getAvatarById(user.avatar).svg"
+            ></div>
+            <span
+              v-else
+              class="w-7 h-7 rounded-full bg-brand/20 text-brand text-xs font-bold flex items-center justify-center shrink-0"
+            >
+              {{ user.name.charAt(0).toUpperCase() }}
+            </span>
             <span
               class="text-sm truncate"
-              :class="user === displayName ? 'font-medium text-brand dark:text-brand-light' : 'text-gray-700 dark:text-gray-300'"
+              :class="user.name === displayName ? 'font-medium text-brand dark:text-brand-light' : 'text-gray-700 dark:text-gray-300'"
             >
-              {{ user }}{{ user === displayName ? ' (you)' : '' }}
+              {{ user.name }}{{ user.name === displayName ? ' (you)' : '' }}
             </span>
           </div>
         </div>
