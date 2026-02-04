@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 
-export function useWebSocket(roomId, { onMessage, onClose, onError } = {}) {
+export function useWebSocket(roomId, displayName, { onMessage, onClose, onError } = {}) {
   const isConnected = ref(false)
   let ws = null
   let reconnectAttempts = 0
@@ -21,6 +21,8 @@ export function useWebSocket(roomId, { onMessage, onClose, onError } = {}) {
     ws.onopen = () => {
       isConnected.value = true
       reconnectAttempts = 0
+      // Send join message with display name
+      ws.send(JSON.stringify({ sender: displayName, type: 'join' }))
     }
 
     ws.onmessage = (event) => {

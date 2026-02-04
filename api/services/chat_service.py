@@ -3,26 +3,29 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self) -> None:
-        self._rooms: dict[str, list[WebSocket]] = {}
+        self._rooms: dict[str, dict[WebSocket, str]] = {}
 
-    async def connect(self, room_id: str, websocket: WebSocket) -> None:
+    async def connect(self, room_id: str, websocket: WebSocket, name: str) -> None:
         await websocket.accept()
-        self._rooms.setdefault(room_id, []).append(websocket)
+        self._rooms.setdefault(room_id, {})[websocket] = name
 
-    def disconnect(self, room_id: str, websocket: WebSocket) -> None:
-        connections = self._rooms.get(room_id, [])
-        if websocket in connections:
-            connections.remove(websocket)
+    def disconnect(self, room_id: str, websocket: WebSocket) -> str | None:
+        connections = self._rooms.get(room_id, {})
+        name = connections.pop(websocket, None)
         if not connections:
             self._rooms.pop(room_id, None)
+        return name
+
+    def get_users(self, room_id: str) -> list[str]:
+        return list(self._rooms.get(room_id, {}).values())
 
     async def broadcast(self, room_id: str, message: dict) -> None:
-        connections = self._rooms.get(room_id, [])
+        connections = self._rooms.get(room_id, {})
         for connection in connections:
             await connection.send_json(message)
 
     async def disconnect_room(self, room_id: str) -> None:
-        connections = self._rooms.pop(room_id, [])
+        connections = self._rooms.pop(room_id, {})
         for connection in connections:
             try:
                 await connection.close(code=4001, reason="Room expired")
