@@ -18,7 +18,7 @@ Ephemeral chat rooms that self-destruct after one hour. No accounts, no signup, 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|------------|
+| --- | --- |
 | Backend | FastAPI (Python 3.14), Uvicorn |
 | Frontend | Vue 3, Vue Router 4, Vite 7 |
 | Styling | Tailwind CSS 4 |
@@ -66,7 +66,7 @@ docker compose up --build
 This starts three services:
 
 | Service | Port | Description |
-|---------|------|-------------|
+| --- | --- | --- |
 | `redis` | 6379 | Redis 7 (exposed to host) |
 | `api` | — | FastAPI backend |
 | `frontend` | 80 | Nginx serving the Vue SPA, proxying `/api` and `/ws` to the API |
@@ -74,7 +74,7 @@ This starts three services:
 ## Makefile
 
 | Target | Description |
-|--------|-------------|
+| --- | --- |
 | `make install` | Install frontend npm packages and Python dependencies |
 | `make build` | Build the Vue SPA to `frontend/dist` |
 | `make serve` | Build frontend then start the FastAPI server |
@@ -141,7 +141,7 @@ chatty/
 Settings are loaded from environment variables with the `CHATTY_` prefix:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `CHATTY_REDIS_URL` | `redis://localhost:6379` | Redis connection URL |
 | `CHATTY_ROOM_TTL_SECONDS` | `3600` | Room lifetime in seconds |
 | `CHATTY_CLEANUP_INTERVAL_SECONDS` | `30` | How often the cleanup task runs |
@@ -151,7 +151,7 @@ Settings are loaded from environment variables with the `CHATTY_` prefix:
 ### REST
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| --- | --- | --- |
 | `POST` | `/api/rooms/` | Create a new room |
 | `GET` | `/api/rooms/{room_id}` | Get room info and remaining TTL |
 
@@ -174,14 +174,14 @@ Connect to `/ws/{room_id}` for real-time messaging.
 **Server broadcasts:**
 
 | `sender` field | Payload | Purpose |
-|----------------|---------|---------|
+| --- | --- | --- |
 | `__system__` | `{ "content": "Alice joined the chat" }` | Join/leave notifications |
 | `__user_list__` | `{ "content": [{ "name": "Alice", "avatar": "afro" }] }` | Online user list updates |
 
 **Close codes:**
 
 | Code | Meaning |
-|------|---------|
+| --- | --- |
 | `1000` | Normal close |
 | `4001` | Room expired |
 | `4004` | Room not found |
