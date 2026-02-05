@@ -5,7 +5,7 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['send'])
+const emit = defineEmits(['send', 'typing'])
 
 const message = ref('')
 const textareaRef = ref(null)
@@ -70,6 +70,13 @@ function resizeTextarea() {
   el.style.height = Math.min(el.scrollHeight, 128) + 'px'
 }
 
+function handleInput() {
+  resizeTextarea()
+  if (message.value.trim().length > 0) {
+    emit('typing')
+  }
+}
+
 function toggleEmojiPicker() {
   showEmojiPicker.value = !showEmojiPicker.value
 }
@@ -130,7 +137,7 @@ onUnmounted(() => {
         placeholder="Type a message..."
         class="flex-1 resize-none px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors text-sm"
         @keydown="handleKeydown"
-        @input="resizeTextarea"
+        @input="handleInput"
       />
 
       <!-- Emoji picker button -->

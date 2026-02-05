@@ -27,6 +27,14 @@ class ConnectionManager:
         for connection in connections:
             await connection.send_json(message)
 
+    async def broadcast_except(
+        self, room_id: str, message: dict, exclude: WebSocket
+    ) -> None:
+        connections = self._rooms.get(room_id, {})
+        for connection in connections:
+            if connection is not exclude:
+                await connection.send_json(message)
+
     async def disconnect_room(self, room_id: str) -> None:
         connections = self._rooms.pop(room_id, {})
         for connection in connections:

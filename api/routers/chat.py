@@ -49,7 +49,18 @@ async def chat_websocket(websocket: WebSocket, room_id: str) -> None:
     try:
         while True:
             data = await websocket.receive_json()
-            await manager.broadcast(room_id, data)
+            if data.get("type") == "typing":
+                await manager.broadcast_except(
+                    room_id,
+                    {
+                        "sender": "__typing__",
+                        "content": name,
+                        "timestamp": "",
+                    },
+                    exclude=websocket,
+                )
+            else:
+                await manager.broadcast(room_id, data)
     except WebSocketDisconnect:
         user = manager.disconnect(room_id, websocket)
         if user:

@@ -86,6 +86,18 @@ export function useWebSocket(roomId, displayName, avatar, { onMessage, onClose, 
     }
   }
 
+  let lastTypingSent = 0
+  const TYPING_THROTTLE = 2000
+
+  function sendTyping() {
+    const now = Date.now()
+    if (now - lastTypingSent < TYPING_THROTTLE) return
+    lastTypingSent = now
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'typing' }))
+    }
+  }
+
   function close() {
     closed = true
     if (reconnectTimeout) {
@@ -100,5 +112,5 @@ export function useWebSocket(roomId, displayName, avatar, { onMessage, onClose, 
 
   onUnmounted(close)
 
-  return { connect, send, close, isConnected, reconnecting: ref(false) }
+  return { connect, send, sendTyping, close, isConnected, reconnecting: ref(false) }
 }

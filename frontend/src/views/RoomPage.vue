@@ -30,6 +30,28 @@ const chatContainer = ref(null)
 const linkCopied = ref(false)
 const onlineUsers = ref([])
 const showUsersPanel = ref(false)
+const typingUsers = ref(new Set())
+const typingTimers = {}
+
+function handleTypingIndicator(userName) {
+  typingUsers.value.add(userName)
+  typingUsers.value = new Set(typingUsers.value) // trigger reactivity
+
+  if (typingTimers[userName]) clearTimeout(typingTimers[userName])
+  typingTimers[userName] = setTimeout(() => {
+    typingUsers.value.delete(userName)
+    typingUsers.value = new Set(typingUsers.value)
+    delete typingTimers[userName]
+  }, 3000)
+}
+
+const typingText = computed(() => {
+  const users = [...typingUsers.value]
+  if (users.length === 0) return ''
+  if (users.length === 1) return `${users[0]} is typing...`
+  if (users.length === 2) return `${users[0]} and ${users[1]} are typing...`
+  return `${users[0]} and ${users.length - 1} others are typing...`
+})
 
 const roomLink = computed(() => window.location.origin + `/room/${props.id}`)
 
@@ -52,6 +74,10 @@ function initWebSocket() {
     onMessage(data) {
       if (data.sender === '__user_list__') {
         onlineUsers.value = data.content
+        return
+      }
+      if (data.sender === '__typing__') {
+        handleTypingIndicator(data.content)
         return
       }
       if (data.sender === '__system__') {
@@ -131,6 +157,11 @@ function handleSend(content) {
     avatar: userAvatar.value,
     content,
   })
+}
+
+function handleTyping() {
+  if (!ws) return
+  ws.sendTyping()
 }
 
 function handleExpired() {
@@ -243,7 +274,7 @@ onMounted(async () => {
   </div>
 
   <!-- Chat room -->
-  <div v-else-if="room" class="flex-1 flex flex-col">
+  <div v-else-if="room" class="flex-1 flex flex-col min-h-0">
     <!-- Countdown in header area -->
     <div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/50">
       <div class="flex items-center gap-3">
@@ -314,7 +345,7 @@ onMounted(async () => {
     <!-- Main chat area with optional users sidebar -->
     <div class="flex-1 flex min-h-0">
       <!-- Messages column -->
-      <div class="flex-1 flex flex-col min-w-0">
+      <div class="flex-1 flex flex-col min-w-0 min-h-0">
         <!-- Messages area -->
         <div
           ref="chatContainer"
@@ -344,10 +375,23 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Typing indicator -->
+        <div
+          v-if="typingText"
+          class="shrink-0 px-4 py-1"
+        >
+          <div class="max-w-3xl mx-auto">
+            <span class="text-xs text-gray-400 dark:text-gray-500 italic animate-pulse">
+              {{ typingText }}
+            </span>
+          </div>
+        </div>
+
         <!-- Chat input -->
         <ChatInput
           :disabled="connectionStatus !== 'connected' || isExpired"
           @send="handleSend"
+          @typing="handleTyping"
         />
       </div>
 
