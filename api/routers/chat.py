@@ -60,6 +60,14 @@ async def chat_websocket(websocket: WebSocket, room_id: str) -> None:
                     exclude=websocket,
                 )
             else:
+                # Validate mentions against current room members
+                if "mentions" in data and isinstance(data["mentions"], list):
+                    current_users = {
+                        u["name"] for u in manager.get_users(room_id)
+                    }
+                    data["mentions"] = [
+                        m for m in data["mentions"] if m in current_users
+                    ]
                 await manager.broadcast(room_id, data)
     except WebSocketDisconnect:
         user = manager.disconnect(room_id, websocket)

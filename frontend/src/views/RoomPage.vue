@@ -3,6 +3,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRoom } from '../composables/useRoom'
 import { useWebSocket } from '../composables/useWebSocket'
+import { useNotificationSound } from '../composables/useNotificationSound'
 import { getAvatarById } from '../data/avatars.js'
 import CountdownTimer from '../components/CountdownTimer.vue'
 import DisplayNameModal from '../components/DisplayNameModal.vue'
@@ -16,6 +17,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { getRoom, loading } = useRoom()
+const { play: playMentionSound } = useNotificationSound()
 
 // State
 const room = ref(null)
@@ -30,6 +32,7 @@ const chatContainer = ref(null)
 const linkCopied = ref(false)
 const onlineUsers = ref([])
 const showUsersPanel = ref(false)
+const replyingTo = ref(null)
 const typingUsers = ref(new Set())
 const typingTimers = {}
 
@@ -85,14 +88,25 @@ function initWebSocket() {
         return
       }
       messages.value.push({
-        id: crypto.randomUUID(),
+        id: data.id || crypto.randomUUID(),
         sender: data.sender,
         avatar: data.avatar || null,
         content: data.content,
         timestamp: data.timestamp,
         isSystem: false,
+        mentions: data.mentions || [],
+        replyTo: data.replyTo || null,
       })
       nextTick(scrollToBottom)
+
+      // Play sound if current user is mentioned by someone else
+      if (
+        data.sender !== displayName.value &&
+        Array.isArray(data.mentions) &&
+        data.mentions.includes(displayName.value)
+      ) {
+        playMentionSound()
+      }
     },
     onClose(reason) {
       if (reason === 'expired') {
@@ -150,13 +164,37 @@ function handleNameSubmit({ name, avatar }) {
   initWebSocket()
 }
 
-function handleSend(content) {
+function handleSend({ content, mentions }) {
   if (!ws) return
-  ws.send({
+
+  const payload = {
+    id: crypto.randomUUID(),
     sender: displayName.value,
     avatar: userAvatar.value,
     content,
-  })
+    mentions,
+  }
+
+  if (replyingTo.value) {
+    payload.replyTo = {
+      id: replyingTo.value.id,
+      sender: replyingTo.value.sender,
+      content: replyingTo.value.content.length > 100
+        ? replyingTo.value.content.slice(0, 100) + '...'
+        : replyingTo.value.content,
+    }
+    replyingTo.value = null
+  }
+
+  ws.send(payload)
+}
+
+function handleReply(message) {
+  replyingTo.value = message
+}
+
+function cancelReply() {
+  replyingTo.value = null
 }
 
 function handleTyping() {
@@ -365,12 +403,16 @@ onMounted(async () => {
             <ChatMessage
               v-for="msg in messages"
               :key="msg.id"
+              :id="msg.id"
               :sender="msg.sender"
               :avatar="msg.avatar"
               :content="msg.content"
               :timestamp="msg.timestamp"
               :is-own="isOwnMessage(msg.sender)"
               :is-system="msg.isSystem"
+              :mentions="msg.mentions"
+              :reply-to="msg.replyTo"
+              @reply="handleReply"
             />
           </div>
         </div>
@@ -390,8 +432,11 @@ onMounted(async () => {
         <!-- Chat input -->
         <ChatInput
           :disabled="connectionStatus !== 'connected' || isExpired"
+          :online-users="onlineUsers"
+          :replying-to="replyingTo"
           @send="handleSend"
           @typing="handleTyping"
+          @cancel-reply="cancelReply"
         />
       </div>
 
